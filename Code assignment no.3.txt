@@ -1,0 +1,238 @@
+#include <freertos/FreeRTOS.h>
+#include <freertos/semphr.h>
+//Create by Gunjan
+
+int LED_1=13; //For LED of task 1 output port
+int LED2_FREQ=12;// To measure the frequency in task-2, an input port is required from the signal generator.
+int LED3_FREQ=14;// To measure the frequency in task-3, it is necessary to have an input port connected to the signal generator.
+int POT_T4=27;// To display the analog frequency, an input port is needed from the potentiometer.
+int LED_ERROR=26;// An output port that blinks an LED to indicate an error from the potentiometer.
+const int buttonPin = 2;
+const int ledPin = 4;
+float frequency;
+float frequency2;
+SemaphoreHandle_t xButtonSemaphore;
+// Function declarations
+
+void Task_1(void *pvParameters);
+void Task_2(void *pvParameters);
+void Task_3(void *pvParameters);
+void Task_4(void *pvParameters);
+void Task_5(void *pvParameters);
+void Task_6(void *pvParameters);
+void Task_7(void *pvParameters);
+
+// Timer function
+void outputTimerCallback(TimerHandle_t xTimer) {
+  //  The code implementation for the logic of your timer callback function..
+}
+
+
+
+void setup(void) {
+  xButtonSemaphore = xSemaphoreCreateBinary();
+  pinMode(LED_1, OUTPUT); //  Configure pin 2 as an output for Task 1.
+  pinMode(LED2_FREQ, INPUT); // Configure pin 2 as an output for Task 1
+  pinMode(LED3_FREQ, INPUT); // Configure pin 2 as an input for Task 3. 
+  pinMode(POT_T4, INPUT); //  Set pin 2 as an input for Task 4
+  pinMode(LED_ERROR, OUTPUT); // Configure the LED pin as an output for Task 4.
+  pinMode(buttonPin, INPUT_PULLUP);// Set the button pin as an input for Task 6.
+  pinMode(ledPin, OUTPUT);// Configure the LED pin as an output for Task 6
+  //  Set all elements in the readings array to 0 to initialize it
+  Serial.begin(9600);
+  // Task creation
+  xTaskCreate(Task_1, "Task_1", 1024, NULL, 1, NULL);
+  xTaskCreate(Task_2, "Task_2", 1024, NULL, 1, NULL);
+  xTaskCreate(Task_3, "Task_3", 1024, NULL, 1, NULL);
+  xTaskCreate(Task_4, "Task_4", 1024, NULL, 1, NULL);
+  xTaskCreate(Task_5, "Task_5", 1024, NULL, 1, NULL);
+  xTaskCreate(Task_6, "Task_6", 1024, NULL, 1, NULL);
+  xTaskCreate(Task_7, "Task_7", 1024, NULL, 1, NULL);
+
+  // Timer creation
+  TimerHandle_t outputTimer = xTimerCreate("OutputTimer", pdMS_TO_TICKS(4), pdTRUE, (void *)0, outputTimerCallback);
+  xTimerStart(outputTimer, 0);
+}
+
+void loop() {
+  // Empty - all tasks
+//Task_1();
+//Task_2();
+//Task_3();
+//Task_4();
+//Task_5();
+//Task_6();
+//Task_7();
+}
+
+// Task 1, takes 0.9ms
+void Task_1(void *pvParameters) 
+{
+  Serial.println("Task 1 Start");
+  for (;;){
+  digitalWrite(LED_1, HIGH); //  Set pin 2 to the high state for 200 microseconds
+  delayMicroseconds(200);
+  digitalWrite(LED_1, LOW); //  Set pin 2 to the low state for 50 microseconds
+  delayMicroseconds(50);
+  digitalWrite(LED_1, HIGH); //  Set pin 2 to the high state for 30 microseconds
+  delayMicroseconds(30);
+  digitalWrite(LED_1, LOW); //  Keep pin 2 in the low state for the remaining time period
+  }
+  Serial.println("Task 1 Done");
+}
+
+void Task_2(void *pvParameters) 
+{
+  Serial.println("Task 2 Start");
+  for (;;){
+   #define SAMPLES 10 //  Specify the number of samples to be taken
+   int count = 0;
+   for (int i = 0; i < SAMPLES; i++) 
+  {
+    count += pulseIn(LED2_FREQ, HIGH); // Measure the duration of the pulse width of the input signal
+  }
+  count = count*2;
+  frequency = 1000000.0 / (count / SAMPLES); // Compute the frequency of the signal in hertz (Hz)
+  frequency = constrain(frequency, 333, 1000); //  Limit the frequency within the range of 333 Hz to 1000 Hz
+  //int scaled_frequency = map(frequency, 333, 1000, 0, 99); //  Scale the frequency to a range of 0 to 99 for further processing.
+  //Serial.println("Frequency_1:"); //  Send the calculated frequency value to the serial port for output.
+  //Serial.println(frequency); //Send the calculated frequency value to the serial port for output.
+
+
+  
+  }
+  Serial.println("Task 2 Done");
+} 
+
+void Task_3(void *pvParameters)
+{
+  Serial.println("Task 3 Start");
+  for (;;){
+  #define SAMPLES 8 //  Specify the number of samples to be taken
+  int count2 = 0;
+  for (int i = 0; i < SAMPLES; i++) {
+    count2 += pulseIn(LED3_FREQ, HIGH); //  Measure the duration of the pulse width of the input signal.
+  }
+ count2 = count2*2;
+  frequency2 = 1000000.0 / (count2 / SAMPLES); //  Compute the frequency of the signal in hertz (Hz)
+  frequency2 = constrain(frequency2, 500, 1000); //  Limit the frequency within the range of 500 Hz to 1000 Hz.
+  //int scaled_frequency2 = map(frequency2, 500, 1000, 0, 99); // Scale the frequency to a range of 0 to 99 for further processing.
+
+
+
+
+  //Serial.println("Frequency_2:"); //  Send the calculated frequency value to the serial port for output.
+  //Serial.println(frequency2); //  Send the calculated frequency value to the serial port for output.
+  }
+  Serial.println("Task 3 Done");
+} 
+
+void Task_4(void *pvParameters)
+{
+  Serial.println("Task 4 Start");
+  for (;;){
+  const int maxAnalogIn = 1023;
+  const int numReadings = 4;
+  int readings[numReadings];
+  int index = 0;
+  int total = 0;
+  int filteredValue = 0;
+  for (int i = 0; i < numReadings; i++) 
+  {
+  readings[i] = 0;
+  }
+  
+  // Read  the analog input value
+  int analogValue = analogRead(POT_T4);
+  //  Subtract the oldest reading from the running total
+  total -= readings[index];
+  //  Add the new reading to the running total.
+  total += analogValue;
+  //  Save the new reading in the readings array
+  readings[index] = analogValue;
+  //  Increase the index by one
+  index++;
+  // the index exceeds the number of readings, wrap around to the beginning of the array. 
+  if (index >= numReadings)
+   {
+    index = 0;
+  }
+  //  Calculate the filtered value as the average of all the readings
+  filteredValue = total / numReadings;
+  // If the filtered value is greater than half of the maximum range, turn on the LED
+  if (filteredValue > maxAnalogIn / 2) {
+    digitalWrite( LED_ERROR, HIGH);
+    //Serial.println("error led HIGH");
+ 
+  } else {
+    digitalWrite( LED_ERROR, LOW);
+    //Serial.println("error led LOW");
+
+  }
+  //  Transmit the filtered value to the serial port for output
+  Serial.println(filteredValue);
+  }
+  Serial.println("Task 4 Done");
+}
+
+void Task_5(void *pvParameters) 
+{
+  Serial.println("Task 5 Start");
+  for (;;){
+  int Task_2Freq = 0;
+  int Task_3Freq = 0;
+  Task_2Freq = map(frequency, 333, 1000, 0, 99);
+  //  Scale and limit the frequency value to a range of 0 to 99.
+  Task_3Freq = map(frequency2, 500, 1000, 0, 99);
+  //  Transmit the frequency values to the serial port for output
+  Serial.println(Task_2Freq);//To print frequency of given waveform of Task_2
+  Serial.println(Task_3Freq);//To print frequency of given waveform of Task_3
+  }
+  Serial.println("Task 5 Done");
+}
+
+void Task_6(void *pvParameters)
+{
+  Serial.println("Task 6 Start");
+  int buttonState = digitalRead(buttonPin);
+  int lastButtonState = buttonState;
+  unsigned long lastDebounceTime = 0;
+  const unsigned long debounceTime = 50;
+
+  for (;;) {
+    int reading = digitalRead(buttonPin);
+
+    if (reading != lastButtonState) {
+      lastDebounceTime = millis();
+    }
+
+    if ((millis() - lastDebounceTime) > debounceTime) {
+      if (reading != buttonState) {
+        buttonState = reading;
+
+        if (buttonState == LOW) {
+          digitalWrite(ledPin, !digitalRead(ledPin));
+          xSemaphoreGive(xButtonSemaphore);
+        }
+      }
+    }
+
+    lastButtonState = reading;
+    vTaskDelay(pdMS_TO_TICKS(10));
+  }
+  Serial.println("Task_6 Done");
+}
+
+void Task_7(void *pvParameters)
+{
+  Serial.println("Task_7 Start");
+  bool ledState = false;
+
+  for (;;) {
+    if (xSemaphoreTake(xButtonSemaphore, portMAX_DELAY) == pdTRUE) {
+      ledState = !ledState;
+      digitalWrite(ledPin, ledState ? HIGH : LOW);
+    }
+  }
+  Serial.println("Task_7 Done");
+}
